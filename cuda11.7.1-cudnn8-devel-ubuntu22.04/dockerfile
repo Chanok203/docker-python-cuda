@@ -1,0 +1,70 @@
+ARG python_version=3.10
+
+FROM nvidia/cuda:11.7.1-cudnn8-devel-ubuntu22.04
+
+LABEL maintainer "cpathompatai@gmail.com"
+
+SHELL ["/bin/bash", "-c"]
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        gcc \
+        curl \
+        wget \
+        git \
+        ca-certificates \
+        pkg-config \
+        software-properties-common \
+        unzip \
+        links2 \
+        nano \
+        libgl1-mesa-glx \
+        libegl1-mesa \
+        libxrandr2 \
+        libxrandr2 \
+        libxss1 \
+        libxcursor1 \
+        libxcomposite1 \
+        libasound2 \
+        libxi6 \
+        libxtst6 \
+        && apt-get clean \
+        && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /tmp
+
+COPY ./Anaconda3-2023.07-2-Linux-x86_64.sh .
+
+RUN chmod +x Anaconda3-2023.07-2-Linux-x86_64.sh \
+        && ./Anaconda3-2023.07-2-Linux-x86_64.sh -b \
+        && rm Anaconda3-2023.07-2-Linux-x86_64.sh
+
+ENV PATH=/root/anaconda3/bin:$PATH
+ENV CONDA_AUTO_UPDATE_CONDA=false
+
+RUN conda create -y --name python_env python=${python_version}
+
+ENV CONDA_DEFAULT_ENV=python_env
+ENV CONDA_PREFIX=/root/anaconda3/envs/$CONDA_DEFAULT_ENV
+ENV PATH=$CONDA_PREFIX/bin:$PATH
+
+RUN conda install -y conda-build
+
+RUN curl -sL https://deb.nodesource.com/setup_18.x | bash -
+
+RUN apt-get install -y nodejs && apt-get clean -y
+
+RUN conda install -y -c conda-forge jupyterlab ipywidgets \
+        && conda clean -ya
+
+RUN python -m jupyter notebook --generate-config
+
+RUN mkdir /notebooks
+
+WORKDIR /notebooks
+
+EXPOSE 8888
+EXPOSE 6006
+EXPOSE 80
+
+CMD ["bash", "-c", "python -m jupyter lab --port 8888 --ip 0.0.0.0 --no-browser --allow-root"]
